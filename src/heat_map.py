@@ -92,15 +92,21 @@ class Heat_Map_Extractor:
     def video_download(self):
         yt_dl = yt.YoutubeDL()
         info = yt_dl.extract_info(self.url, download=False)
-        title =  (info['title']+".mp4")
-        title = re.sub(r"[^a-zA-Z0-9 .]","", title) ##remove especial characters except space
+        title =  (info['title'])
+        title = re.sub(r"[^a-zA-Z0-9 .]","", title) ##remove especial characters except space and dot
         title = title.replace(" ", "_")
         yt_config = {
-            'outtmpl': self.output+"video/"+title,
+            'outtmpl': self.output+"video/"+title+".mp4",
             "format": "b[height<=480]" 
         }
+        yt_config_2 = {
+            'outtmpl': self.output+"audio/"+title+".wav",
+            "format": "ba"
+        }
         yt_dl = yt.YoutubeDL(yt_config)
+        yt_dl_a = yt.YoutubeDL(yt_config_2)
         yt_dl.download([self.url])
+        yt_dl_a.download([self.url])
         try:
             print("first try")
             self.find_heat_map()
@@ -122,7 +128,7 @@ class Heat_Map_Extractor:
                     exit(0)
 
 
-        n_frames, duration, frame_rate = self.extract_video_data(title)
+        n_frames, duration, frame_rate = self.extract_video_data(title+".mp4")
         heatmap = self.normalize(heatmap, (int(n_frames)/heatmap.shape[0]))
         return title, n_frames, duration, frame_rate, heatmap
         
@@ -144,7 +150,7 @@ def create_json_object(title, n_frames, duration, frame_rate, heatmap):
         "frame_rate": frame_rate,
         "heatmap": heatmap
     }
-    json_object = json.dumps(data, cls=NumpyEncoder)
+    #json_object = json.dumps(data, cls=NumpyEncoder)
     return data
 
 def create_json(title, n_frames, duration, frame_rate, heatmap, output_path):
