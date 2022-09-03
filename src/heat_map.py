@@ -55,8 +55,6 @@ class Heat_Map_Extractor:
             file.close()
         except:
             print("can't extact heatmap")
-            driver.close()
-            exit(0)
         driver.close()
 
     def get_heat_map(self):
@@ -77,6 +75,7 @@ class Heat_Map_Extractor:
 
         heatmap = 1-np.asarray(heatmap)
         heatmap = heatmap + abs(min(heatmap))
+        heatmap = np.round(heatmap, 4)
 
         return heatmap
 
@@ -94,15 +93,35 @@ class Heat_Map_Extractor:
         yt_dl = yt.YoutubeDL()
         info = yt_dl.extract_info(self.url, download=False)
         title =  (info['title']+".mp4")
+        title = re.sub(r"[^a-zA-Z0-9 .]","", title) ##remove especial characters except space
         title = title.replace(" ", "_")
         yt_config = {
             'outtmpl': self.output+"video/"+title,
-            "format": "mp4" 
+            "format": "b[height<=480]" 
         }
         yt_dl = yt.YoutubeDL(yt_config)
         yt_dl.download([self.url])
-        self.find_heat_map()
-        heatmap = self.get_heat_map()
+        try:
+            print("first try")
+            self.find_heat_map()
+            heatmap = self.get_heat_map()
+        except:
+            print("can't find heatmap")
+            try:
+                print("second try")
+                self.find_heat_map()
+                heatmap = self.get_heat_map()
+            except:
+                print("can't find heatmap")
+                try:
+                    print("third try")
+                    self.find_heat_map()
+                    heatmap = self.get_heat_map()
+                except:
+                    print("can't find heatmap")
+                    exit(0)
+
+
         n_frames, duration, frame_rate = self.extract_video_data(title)
         heatmap = self.normalize(heatmap, (int(n_frames)/heatmap.shape[0]))
         return title, n_frames, duration, frame_rate, heatmap
@@ -113,12 +132,11 @@ def args_helper():
     parser.add_argument("-url")
     parser.add_argument("-o")
     parser.add_argument("-mf")
-    parser.add_argument("-if")
+    parser.add_argument("-input_file")
     args = parser.parse_args()
     return args
 
-def create_json(title, n_frames, duration, frame_rate, heatmap, output_path):
-    os.makedirs(output_path+"/jsons/", exist_ok=True)
+def create_json_object(title, n_frames, duration, frame_rate, heatmap):
     data = {
         "title": title,
         "n_frame": n_frames,
@@ -126,28 +144,49 @@ def create_json(title, n_frames, duration, frame_rate, heatmap, output_path):
         "frame_rate": frame_rate,
         "heatmap": heatmap
     }
-
     json_object = json.dumps(data, cls=NumpyEncoder)
+    return data
+
+def create_json(title, n_frames, duration, frame_rate, heatmap, output_path):
+    os.makedirs(output_path+"/jsons/", exist_ok=True)
+    json_object = create_json_object(title, n_frames, duration, frame_rate, heatmap)
+    json_object = json.dumps(json_object, cls=NumpyEncoder)
     with open("{}/jsons/{}.json".format(output_path, title), "w") as out:
         out.write(json_object)
 
+def create_jsons(output_path, jsons_objects):
+    os.makedirs(output_path+"/jsons/", exist_ok=True)
+    jsons_object = json.dumps(jsons_objects, cls=NumpyEncoder)
+    with open("{}/jsons/{}.json".format(output_path, "youtube"), "w") as out:
+        out.write(jsons_object)
+    
 def read_input_file(input_file_path):
     videos = []
     with open(input_file_path) as file:
         for line in file:
             print(line)
             videos.append(line)
+    return videos
 
 def main():
     args = args_helper()
-    ht = Heat_Map_Extractor(args.o, args.url)
-    title, n_frames, duration, frame_rate, heatmap = ht.video_download()
-    create_json(title.split('.mp4')[0], n_frames, duration, frame_rate, heatmap, args.o)
-    print(n_frames)
-    print(duration)
-    print(frame_rate)
-    print(heatmap)
-    print(title)
+    if args.input_file:
+        videos = read_input_file(args.input_file)
+        json_objects = []
+        for video in videos:
+            ht = Heat_Map_Extractor(args.o, video)
+            title, n_frames, duration, frame_rate, heatmap = ht.video_download()
+            json_objects.append(create_json_object(title.split('.mp4')[0], n_frames, duration, frame_rate, heatmap))
+        create_jsons(args.o, json_objects)
+    else:
+        ht = Heat_Map_Extractor(args.o, args.url)
+        title, n_frames, duration, frame_rate, heatmap = ht.video_download()
+        create_json(title.split('.mp4')[0], n_frames, duration, frame_rate, heatmap, args.o)
+        print(n_frames)
+        print(duration)
+        print(frame_rate)
+        print(heatmap)
+        print(title)
 
 if __name__ == "__main__":
     main()
