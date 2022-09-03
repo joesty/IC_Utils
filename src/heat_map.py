@@ -5,18 +5,13 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 import time
 from selenium.webdriver.chrome.options import Options
-import cv2 as cv
-import sys
 import re
 import os
 import numpy as np
-import matplotlib.pyplot as plt 
-import h5py                                                                                                                                                                                                                                   
-import pdb
+import matplotlib.pyplot as plt
 import argparse
 import json
-import ffmpeg                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-#import youtube_dl as yt
+import ffmpeg
 import yt_dlp as yt
 
 
