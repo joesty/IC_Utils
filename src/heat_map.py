@@ -29,19 +29,20 @@ class Heat_Map_Extractor:
     def __init__(self, output, input):
         self.url = input
         self.output = output
-        self.chrome_driver = '/home/joesty/.wdm/drivers/chromedriver/linux64/105.0.5195/chromedriver'
+        self.chrome_driver = ChromeDriverManager().install()
         options = Options()
-        #options.add_argument('--headless=chrome')
+        options.add_argument('--headless=chrome')
         options.add_extension('extension_5_3_0_0.crx')
+        #print("aqui")
         self.driver = webdriver.Chrome(service=Service(self.chrome_driver), options=options )
-        
+        #print("aqui")
         if output[-1] == "/":
             self.output = output
         else:
             self.output = output+"/"
 
-    def __del__(self):
-        self.driver.quit()
+    #def __del__(self):
+    #    self.driver.quit()
 
     def find_heat_map(self):
         #options = Options()
@@ -53,7 +54,7 @@ class Heat_Map_Extractor:
         self.driver.maximize_window()
         time.sleep(5)
         self.driver.get(self.url)
-        time.sleep(5)
+        time.sleep(15)
         self.driver.save_screenshot('./teste.png')
         elements = self.driver.find_elements(By.XPATH, '//*[@class="ytp-heat-map-svg"]  ')
         svg = [WebElement.get_attribute('innerHTML') for WebElement in elements]
@@ -65,16 +66,18 @@ class Heat_Map_Extractor:
             print("can't extact heatmap")
         idx = 0
         self.driver.close()
+        return svg[0]
 
-    def get_heat_map(self):
-        with open("output.txt") as f:
-            lines = f.readlines()
-            line = lines[0]
-            beg_search_str = '<path class="ytp-heat-map-path" d="'
-            end_search_str = '" fill="white" fill-opacity="0.6"></path>'
-            beg_idx = line.index(beg_search_str) + len(beg_search_str)
-            end_idx = line.index(end_search_str)
-            raw_seq = line[beg_idx:end_idx]
+    def get_heat_map(self, text):
+        #with open("output.txt") as f:
+            #lines = f.readlines()
+            #line = lines[0]
+        line = text
+        beg_search_str = '<path class="ytp-heat-map-path" d="'
+        end_search_str = '" fill="white" fill-opacity="0.6"></path>'
+        beg_idx = line.index(beg_search_str) + len(beg_search_str)
+        end_idx = line.index(end_search_str)
+        raw_seq = line[beg_idx:end_idx]
         seq = re.split(",| |'", raw_seq)[3:]
         heatmap = []
         for i in range(len(seq)):
@@ -116,26 +119,21 @@ class Heat_Map_Extractor:
         yt_dl_a = yt.YoutubeDL(yt_config_2)
         yt_dl.download([self.url])
         yt_dl_a.download([self.url])
-        try:
-            print("first try")
-            self.find_heat_map()
-            heatmap = self.get_heat_map()
-        except:
-            print("can't find heatmap")
+        success = False
+        for i in range(3):
             try:
-                print("second try")
-                self.find_heat_map()
-                heatmap = self.get_heat_map()
+                print("first try")
+                text = self.find_heat_map()
+                heatmap = self.get_heat_map(text)
+                success = True
             except:
                 print("can't find heatmap")
-                try:
-                    print("third try")
-                    self.find_heat_map()
-                    heatmap = self.get_heat_map()
-                except:
-                    print("can't find heatmap")
-                    exit(0)
-
+                if i == 2:
+                    exit(0  )
+            
+            if success:
+                print("success")
+                break
 
         n_frames, duration, frame_rate = self.extract_video_data(title+".mp4")
         heatmap = self.normalize(heatmap, (int(n_frames)/heatmap.shape[0]))
