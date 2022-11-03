@@ -1,1 +1,5 @@
-*.YouTube
+#ignore data
+data
+
+#ignore env
+ic

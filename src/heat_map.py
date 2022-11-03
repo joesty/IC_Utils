@@ -5,6 +5,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 import time
 from selenium.webdriver.chrome.options import Options
+from moviepy.editor import *
 import re
 import os
 import numpy as np
@@ -95,10 +96,15 @@ class Heat_Map_Extractor:
         return np.repeat(heatmap, n_frames)
 
     def extract_video_data(self, new_title):
-        meta = (ffmpeg.probe(self.output+"video/"+new_title)["streams"])
-        n_frames = meta[0]['nb_frames']
-        duration = meta[0]['duration']
-        frame_rate = meta[0]['r_frame_rate'].split('/')[0]
+        #meta = (ffmpeg.probe(self.output+"video/"+new_title)["streams"])
+        #n_frames = meta[0]['nb_frames']
+        #duration = meta[0]['duration']
+        #frame_rate = meta[0]['r_frame_rate'].split('/')[0]
+        clip = VideoFileClip("{}video/{}".format(self.output, new_title))
+        duration = clip.duration
+        frame_rate = clip.fps
+        n_frames = clip.reader.nframes
+        clip.close()
         return n_frames, duration, frame_rate
 
     def video_download(self):
@@ -129,14 +135,16 @@ class Heat_Map_Extractor:
             except:
                 print("can't find heatmap")
                 if i == 2:
-                    exit(0  )
+                    exit(0)
             
             if success:
                 print("success")
                 break
 
         n_frames, duration, frame_rate = self.extract_video_data(title+".mp4")
-        heatmap = self.normalize(heatmap, (int(n_frames)/heatmap.shape[0]))
+        enc = int(n_frames/len(heatmap))
+        heatmap = self.normalize(heatmap, enc)
+        print("len heatmap:", len(heatmap))
         return title, n_frames, duration, frame_rate, heatmap
         
 
@@ -218,7 +226,7 @@ def main():
         print(n_frames)
         print(duration)
         print(frame_rate)
-        print(heatmap)
+        #print(heatmap)
         print(title)
         create_hdf5([{'name': title.split('.mp4')[0],
                     'n_frames': n_frames, 
